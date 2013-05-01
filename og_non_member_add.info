@@ -1,0 +1,10 @@
+name = OG Post into Public Groups
+description = Create OG selection handler to allow public group posting by non-members
+core = 7.x
+package = Organic Groups
+php = 5.2.4
+dependencies[] = ctools
+dependencies[] = entityreference
+dependencies[] = entityreference_prepopulate
+dependencies[] = og
+dependencies[] = og_ui
