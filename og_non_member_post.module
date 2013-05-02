@@ -2,7 +2,7 @@
 /**
  * Implements hook_ctools_plugin_directory().
  */
-function og_non_member_add_ctools_plugin_directory($module, $plugin) {
+function og_non_member_post_ctools_plugin_directory($module, $plugin) {
   if ($module == 'entityreference') {
     return "plugins/entityreference/$plugin";
   }

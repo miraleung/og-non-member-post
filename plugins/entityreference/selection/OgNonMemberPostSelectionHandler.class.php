@@ -5,7 +5,7 @@
  * OG Public Group Posts selection handler.
  */
 
-class OgNonMemberAddSelectionHandler extends OgSelectionHandler {
+class OgNonMemberPostSelectionHandler extends OgSelectionHandler {
 
   public static function getInstance($field, $instance = NULL, $entity_type = NULL, $entity = NULL) {
     return new self($field, $instance, $entity_type, $entity);
