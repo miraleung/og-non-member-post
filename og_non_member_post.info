@@ -1,4 +1,4 @@
-name = OG Non-MEMBER Post into Groups
+name = OG Non-Member Post into Groups
 description = Create OG selection handler to allow public group posting by non-members
 core = 7.x
 package = Organic Groups
