@@ -16,9 +16,9 @@ class OgNonMemberPostSelectionHandler extends OgSelectionHandler {
    */
   public function buildEntityFieldQuery($match = NULL, $match_operator = 'CONTAINS') {
 		
-		// $field_mode = $this->instance['field_mode'];
+		$field_mode = $this->instance['field_mode'];
 		$group_type = $this->field['settings']['target_type'];
-    if (/* empty($this->instance['field_mode']) || !$field_mode || */ $group_type != 'node') {
+    if (empty($this->instance['field_mode']) || !$field_mode || $group_type != 'node') {
       return parent::buildEntityFieldQuery($match, $match_operator);
     }
 
