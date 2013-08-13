@@ -16,12 +16,13 @@ class OgNonMemberPostSelectionHandler extends OgSelectionHandler {
    */
   public function buildEntityFieldQuery($match = NULL, $match_operator = 'CONTAINS') {
 		
-		$field_mode = $this->instance['field_mode'];
 		$group_type = $this->field['settings']['target_type'];
-    if (empty($this->instance['field_mode']) || !$field_mode || $group_type != 'node') {
+    if (empty($this->instance['field_mode']) || $group_type != 'node') {
       return parent::buildEntityFieldQuery($match, $match_operator);
     }
-
+	
+		$field_mode = $this->instance['field_mode'];
+		
 		$gid = $this->entity->uid;
 		$bundle = reset($this->field['settings']['handler_settings']['target_bundles']);
 		$roles = og_roles($group_type, $bundle, $gid);
