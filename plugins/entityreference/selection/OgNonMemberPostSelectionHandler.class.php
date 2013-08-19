@@ -22,10 +22,9 @@ class OgNonMemberPostSelectionHandler extends OgSelectionHandler {
     }
 	
 		$field_mode = $this->instance['field_mode'];
-		
-		$gid = $this->entity->uid;
 		$bundle = reset($this->field['settings']['handler_settings']['target_bundles']);
-		$roles = og_roles($group_type, $bundle, $gid);
+		//$gid = $this->entity->uid;
+		$roles = og_roles($group_type, $bundle); //, $gid);
 		$role_permissions = og_role_permissions($roles);
 		
     $handler = EntityReference_SelectionHandler_Generic::getInstance($this->field, $this->instance, $this->entity_type, $this->entity);
@@ -68,7 +67,7 @@ class OgNonMemberPostSelectionHandler extends OgSelectionHandler {
 			$qroles = og_roles($group_type, $bundle, $q->nid);
 			$qrole_permissions = og_role_permissions($qroles);
 			foreach ($qrole_permissions as $rid => $permission) {
-				if ($this->has_access($permission, $node_type)) 
+				if ($this->has_access($permission, $node_type) && !in_array($q->nid, $oids)) 
 					$oids[] = $q->nid;
 			}
 		}
