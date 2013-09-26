@@ -9,11 +9,3 @@ function og_non_member_post_ctools_plugin_directory($module, $plugin) {
 }
 
 
-// ========================
-dpm("OG NON MEMBER POST");
-
-function og_non_member_post_node_load($nodes, $types) {
-  dpm("OG NON MEMBER POST HOOK LOAD");
-  dpm($nodes);
-  dpm($types);
-}
