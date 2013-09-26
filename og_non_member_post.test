@@ -1,0 +1,437 @@
+<?php
+
+/**
+ * @file
+ * 
+ * Tests for OG Non Member Post
+ *
+ */
+
+
+class OgNonMemberPostRemoveGroupsTestCase extends DrupalWebTestCase {
+
+  // Constants
+  // // Users
+  protected $usr_WonAbove, $usr_Above, $usr_Too; // uids 2, 3, 4 resp.
+  
+  // // OG Content Types -- Groups
+  protected $grpal, $fauxgrpal;
+  
+  // // OG Content Types -- Group Content
+  protected $loremIpsum;
+
+  // // Groups
+  protected $grpal_Won, $grpal_Too, $grpal_Free; // nid = 1, 2, 3 resp.
+  protected $fauxgrpal_Above, $fauxgrpal_Beyond, $fauxgrpal_Call, 
+    $fauxgrpal_Duty, $fauxgrpal_Excellency; // nids = 65 - 69 resp.
+    
+  // // Group Content
+  protected $loremIpsum_dolorSitAmet;
+  
+  // // Also allow access by Field
+  protected $ogAccessRef, $ogAccessRef_instance;
+  
+  
+  public static function getInfo() {
+    return array(
+      'name'        => 'OG Non Member Post',
+      'description' => 'Ensure that group non-members can properly edit group content.',
+      'group'       => 'Organic Groups Non Member Post Test',
+    );
+  }
+  
+  public function setUp() {
+    parent::setUp('og_non_member_post');
+    
+    // PHP error logging
+    ini_set('log_errors', 1);
+    ini_set('error_log', "~/websites/csinternal.dev/sites/all/modules/custom/og_non_member_post/php-error.log");
+    error_log("Running OG Non Member Post Tests...");
+
+  }
+  
+  public function testTest() {
+    $var = 2+1;
+    $this->createUsers();
+    $this->createOgGroupTypeStructure();
+    $this->createOgGroupContentTypeStructure();
+    $this->createOgGroupRefField();
+    $this->createOgGroupGroups(); 
+    $this->createOgGroupContentNode();
+    
+    $this->addUsersToOgGroups();
+   
+    //$this->printObjs(); // debugging
+
+    // Constants
+    $nid_g2 = $this->grpal_Too->nid;
+    $nid_fga = $this->fauxgrpal_Above->nid;
+    $nid_fgb = $this->fauxgrpal_Beyond->nid;
+    $nid_fgc = $this->fauxgrpal_Call->nid;
+    $nid_fgd = $this->fauxgrpal_Duty->nid;
+    $nid_fge = $this->fauxgrpal_Excellency->nid;
+    $uid_1a = $this->usr_WonAbove->uid;
+    $uid_a = $this->usr_Above->uid;
+    $uid_2 = $this->usr_Too->uid;
+    $ra_bcd = array(1 => $nid_fgb, 2 => $nid_fgc, 3 => $nid_fgd);
+    
+    // Test that groups were created correctly
+    $this->tryGroupCreation($nid_fga, $nid_fgc, $nid_fge, $nid_g2, $uid_a);
+    
+    // Access tests begin
+    $this->tryRemoveGrps($uid_1a, 4, 5, 4, 'e_1a');              // User 1A removes grp E
+    $this->tryAddGrps(array(4 => $nid_fge), $uid_1a, 5, 'e_1a'); // u1A adds E
+    $this->tryRemoveGrps($uid_1a, 0, 3, 1, 'abcd_1a');           // u1A removes ABCD
+    $this->tryAddGrps(array(0 => $nid_fga), $uid_2, 2, 'a_2');   // u2 adds A
+    $this->tryAddGrps($ra_bcd, $uid_a, 5, 'bcd_a');              // uA adds BCD
+    $this->tryRemoveGrps($uid_a, 1, 4, 2, 'bcd_a');              // uA removes BCD
+    $this->tryAddGrps($ra_bcd, $uid_1a, 5, 'bcd_1a');            // u1A adds BCD
+    $this->tryRemoveGrps($uid_2, 0, 5, 0, 'all_2');              // u2 removes ABCDE
+    $this->tryAddGrps(array(0 => $nid_fgb, 1 => $nid_fgc), $uid_2, 2, 'bc_2'); // u2 adds BC
+   
+  }
+  
+  public function tearDown() {
+    parent::tearDown('og_non_member_post');
+  }
+
+  /**
+   * ===================================================================
+   * TEST CASE EXECUTION HELPERS
+   * ===================================================================
+   */
+  function tryGroupCreation($nid_fga, $nid_fgc, $nid_fge, $nid_g2, $uid_a) {
+    $f_access = &$this->loremIpsum_dolorSitAmet->field_og_access_ref['und'];
+    $obj_dsa = &$this->loremIpsum_dolorSitAmet;
+    $this->assertTrue($obj_dsa->og_group_ref['und'][0]['target_id'] == $nid_g2); 
+    $this->assertTrue($f_access[0]['target_id'] == $nid_fga);
+    $this->assertTrue($f_access[2]['target_id'] == $nid_fgc);      
+    $this->assertTrue($f_access[4]['target_id'] == $nid_fge);    
+    $this->assertTrue($obj_dsa->uid == $uid_a);
+    $this->assertTrue(sizeof($f_access) == 5);
+  }
+  
+  function tryAddGrps($ra_nid, $uid, $fsize, $str_case) {
+    $this->tryOperOnGrps($ra_nid, $uid, 0, 0, $fsize, 'add', $str_case);
+  }
+  
+  function tryRemoveGrps($uid, $s_i, $e_i, $fsize, $str_case) {
+    $this->tryOperOnGrps(array(), $uid, $s_i, $e_i, $fsize, 'rm', $str_case);
+  }
+  
+  function tryOperOnGrps($ra_nid, $uid, $s_i, $e_i, $fsize, $str_oper, $str_case) {
+      $f_access = &$this->loremIpsum_dolorSitAmet->field_og_access_ref['und'];
+      $obj_dsa = &$this->loremIpsum_dolorSitAmet;
+       if (!in_array($str_oper, array('rm', 'add'))) return;
+       
+      if ($str_oper == 'rm') {
+        switch ($str_case) {
+          case 'e_1a':    $this->removeFauxgrpalE_User1ADolorSitAmet();     break;
+          case 'abcd_1a': $this->removeFauxgrpalABCD_User1ADolorSitAmet();  break;
+          case 'bcd_a':   $this->removeFauxgrpalBCD_UserADolorSitAmet();    break;
+          case 'all_2':   $this->removeAllFauxgrpal_User2DolorSitAmet();    break;
+          default: return; // should never happen
+        }
+        for ($i = $s_i; $i < $e_i; $i++) 
+          $this->assertTrue(empty($f_access[$i]['target_id']));      
+      } else {
+          switch ($str_case) {
+            case 'e_1a':    $this->addFauxgrpalE_User1ADolorSitAmet();    break;
+            case 'a_2':     $this->addFauxgrpalA_User2DolorSitAmet();     break;
+            case 'bcd_a':   $this->addFauxgrpalBCD_UserADolorSitAmet();   break;
+            case 'bcd_1a':  $this->addFauxgrpalBCD_User1ADolorSitAmet();  break;
+            case 'bc_2':    $this->addFauxgrpalBC_User2DolorSitAmet();    break;
+            default: return; // should never happen
+          }
+         foreach ($ra_nid as $i => $nid) {
+          $this->assertFalse(empty($f_access[$i]['target_id']));
+          $this->assertTrue($f_access[$i]['target_id'] == $nid);
+         }
+      }
+      
+    $this->assertTrue(sizeof($f_access) == $fsize); 
+    $this->assertTrue($obj_dsa->revision_uid == $uid); 
+  }
+
+
+  /**
+   * ==================================================================
+   * HELPERS
+   * ==================================================================
+   */
+
+  
+  protected function createUsers() { 
+    $this->usr_WonAbove = $this->drupalCreateUser();
+    $this->usr_Above    = $this->drupalCreateUser();
+    $this->usr_Too      = $this->drupalCreateUser();
+    error_log("User name: " . $this->usr_Too->name . ", uid: " . $this->usr_Too->uid);
+  }
+  
+  protected function createOgGroupTypeStructure() {  
+    
+    $this->grpal = 
+      $this->drupalCreateContentType(array('name'=>'grpal'))->type;
+    $this->fauxgrpal = 
+      $this->drupalCreateContentType(array('name'=>'fauxgrpal'))->type;
+    
+    // These are OG group types
+    og_create_field(OG_GROUP_FIELD, 'node', $this->grpal);
+    og_create_field(OG_GROUP_FIELD, 'node', $this->fauxgrpal);
+    
+  }
+  
+  protected function createOgGroupContentTypeStructure() {
+    $this->loremIpsum = $this->drupalCreateContentType(array('name' => 'loremIpsum'))->type;
+    // This is an OG group content type
+    og_create_field(OG_AUDIENCE_FIELD, 'node', $this->loremIpsum);
+  }
+ 
+  
+  protected function createOgGroupRefField() {
+    $field = array(
+      'field_name'  => 'field_og_access_ref',
+      'type'        => 'entityreference',
+      'cardinality' => FIELD_CARDINALITY_UNLIMITED,
+      'settings'    => array(
+        'handler'           => 'og_non_member_post',
+        'target_type'       => 'node',
+        'handler_settings'  => array(
+          'target_bundles'    => array($this->fauxgrpal),
+         ),
+      ),
+    );
+    
+    $this->ogAccessRef = field_create_field($field);  
+    
+    $instance = array(
+      'field_name'  => 'field_og_access_ref',
+      'entity_type' => 'entityreference',
+      'bundle'      => $this->loremIpsum,
+      'widget'      => array('type' => 'options_select',),
+      'settings'    => array(
+        'target_type'       => 'your_entity_type',
+        'handler_settings'  => array(
+          'target_bundles'    => array($this->fauxgrpal),
+        ),
+      ),
+    );
+    
+    $this->ogAccessRef_instance = field_create_instance($instance);  
+ 
+  }
+  
+  // Create the actual groups, i.e. grpal: {1, 2, 3} and fauxgrpal {A, B, C, D, E}
+  protected function createOgGroupGroups() {
+
+    // Create grpal first -- settings
+    $s = array();
+    for ($i = 0; $i < 8; $i++) {
+      $type = ($i < 3) ? 'grpal' : 'fauxgrpal';
+      $s[$i] = array(
+        'type' => $type,
+        'title' => $this->randomName(32),
+        'body' => array(LANGUAGE_NONE => array(array($this->randomName(64)))),
+      );
+    }
+
+    $this->grpal_Won = $this->drupalCreateNode($s[0]);
+    error_log("CREATED GRPAL_WON");
+    error_log('Node created: ' . var_export($this->grpal_Won, TRUE));
+    $this->grpal_Too = $this->drupalCreateNode($s[1]);
+    $this->grpal_Free = $this->drupalCreateNode($s[2]);
+    $this->fauxgrpal_Above = $this->drupalCreateNode($s[3]);
+    $this->fauxgrpal_Beyond = $this->drupalCreateNode($s[4]);
+    $this->fauxgrpal_Call = $this->drupalCreateNode($s[5]);
+    $this->fauxgrpal_Duty = $this->drupalCreateNode($s[6]);
+    $this->fauxgrpal_Excellency = $this->drupalCreateNode($s[7]);
+     
+  }
+  
+  protected function createOgGroupContentNode() {
+    $s = array(
+      'type' => 'loremIpsum',
+      'title' => 'dolorSitAmet',
+      'uid' => $this->usr_Above->uid, // created user wonabove
+      'body' => array(LANGUAGE_NONE => array(array($this->randomName(64)))),
+      'og_group_ref' => array(LANGUAGE_NONE => array(
+          array('target_id' => $this->grpal_Too->nid),
+        ),
+      ),
+      'field_og_access_ref' => array(LANGUAGE_NONE => array(
+        array('target_id' => $this->fauxgrpal_Above->nid),
+        array('target_id' => $this->fauxgrpal_Beyond->nid),
+        array('target_id' => $this->fauxgrpal_Call->nid),
+        array('target_id' => $this->fauxgrpal_Duty->nid),
+        array('target_id' => $this->fauxgrpal_Excellency->nid),
+       ),
+      ),
+    );
+  
+
+    $this->loremIpsum_dolorSitAmet = $this->drupalCreateNode($s);
+    error_log("lorem ipsum dolor sit amet created");
+  }
+  
+  protected function addUsersToOgGroups() {
+    $member_id = 2; 
+    
+    for ($i = 0; $i < 3; $i++) {
+       switch ($i) {
+        case 0: 
+          $user = $this->usr_WonAbove; 
+          $nid = $this->grpal_Won->nid; 
+          $nid2 = $this->fauxgrpal_Above->nid; 
+          break;
+        case 1: 
+          $user = $this->usr_Above; 
+          $nid = $this->fauxgrpal_Above->nid;
+          break;
+        case 2: 
+          $user = $this->usr_Too; 
+          $nid = $this->grpal_Too->nid;
+          break;
+        default: $user = NULL; break; // Should never happen
+       }
+       
+       $ra_mbrship = array(
+        'entity_type' => 'user',
+        'entity_id' => $user->uid,
+        'membership type' => $member_id,
+       );
+       $uid = $user->uid;       
+       error_log("User (uid) $uid now a member of group (nid) $nid");
+       og_group('node', $nid, $ra_mbrship);
+       og_role_grant('node', $nid, $uid, $member_id);
+       if ($i == 0 && !empty($nid2)) {
+         og_group('node', $nid2, $ra_mbrship);
+         og_role_grant('node', $nid2, $uid, $member_id);
+       }
+    } 
+  }
+  
+  function removeFauxgrpalE_User1ADolorSitAmet() {
+    $dsa = &$this->loremIpsum_dolorSitAmet;
+    // Remove fauxgrpal E
+    unset($dsa->field_og_access_ref['und'][4]); 
+    $this->helperCaseCoda($dsa, "User 1a removed fauxgrpal_E", $this->usr_WonAbove->uid);    
+  }
+  
+  function addFauxgrpalE_User1ADolorSitAmet() {
+    $dsa = &$this->loremIpsum_dolorSitAmet;
+    $dsa->field_og_access_ref['und'][4] = $this->fauxgrpal_Excellency->nid;
+    $this->helperCaseCoda($dsa, "User 1A added fauxgrpal_E", $this->usr_WonAbove->uid);  
+  }
+  
+  
+  function removeFauxgrpalABCD_User1ADolorSitAmet() {
+    $dsa = &$this->loremIpsum_dolorSitAmet;
+    $msg = "User 1A removed fauxgrpal_A, fauxgrpal_B, fauxgrpal_C, fauxgrpal_D";
+    // Remove fauxgrpal A, B. C. D
+    for ($i = 0; $i < 4; $i++) unset($dsa->field_og_access_ref['und'][$i]); 
+    $this->helperCaseCoda($dsa, $msg, $this->usr_WonAbove->uid);    
+  }
+  
+  function addFauxgrpalA_User2DolorSitAmet() {
+    $dsa = &$this->loremIpsum_dolorSitAmet;
+    $dsa->field_og_access_ref['und'][0] = $this->fauxgrpal_Above->nid;
+    $this->helperCaseCoda($dsa, "User 2 added fauxgrpal_A", $this->usr_Too->uid);
+  }
+  
+  function addFauxgrpalBCD_UserADolorSitAmet() {
+    $dsa = &$this->loremIpsum_dolorSitAmet;
+    for ($i = 1; $i < 4; $i++) {
+      switch ($i) {
+        case 1: $nid = $this->fauxgrpal_Beyond->nid; break;
+        case 2: $nid = $this->fauxgrpal_Call->nid; break;
+        case 3: $nid = $this->fauxgrpal_Duty->nid; break;
+        default: $nid = 99; break; // should never happen
+      }
+      $dsa->field_og_access_ref['und'][$i] = $nid;
+    }
+    $this->helperCaseCoda($dsa, "User A added fauxgrpal_B, fauxgrpal_C, fauxgrpal_D", $this->usr_Above->uid);
+  }
+  
+  function removeFauxgrpalBCD_UserADolorSitAmet() {
+    $dsa = &$this->loremIpsum_dolorSitAmet;
+    $msg = "User A removed fauxgrpal_B, fauxgrpal_C, fauxgrpal_D";
+    // Remove fauxgrpal B. C. D
+    for ($i = 1; $i < 4; $i++) unset($dsa->field_og_access_ref['und'][$i]); 
+    $this->helperCaseCoda($dsa, $msg, $this->usr_Above->uid);    
+  }
+  
+  function addFauxgrpalBCD_User1ADolorSitAmet() {
+    $dsa = &$this->loremIpsum_dolorSitAmet;
+    for ($i = 1; $i < 4; $i++) {
+      switch ($i) {
+        case 1: $nid = $this->fauxgrpal_Beyond->nid; break;
+        case 2: $nid = $this->fauxgrpal_Call->nid; break;
+        case 3: $nid = $this->fauxgrpal_Duty->nid; break;
+        default: $nid = 99; break; // should never happen
+      }
+      $dsa->field_og_access_ref['und'][$i] = $nid;
+    }
+    $this->helperCaseCoda($dsa, "User 1A added fauxgrpal_B, fauxgrpal_C, fauxgrpal_D", $this->usr_WonAbove->uid);
+  }
+  
+  function removeAllFauxgrpal_User2DolorSitAmet() {
+    $dsa = &$this->loremIpsum_dolorSitAmet;
+    $msg = "User 1A removed fauxgrpal_A, fauxgrpal_B, fauxgrpal_C, fauxgrpal_D, fauxgrpal_E";
+    // Remove fauxgrpal A, B. C. D, E
+    for ($i = 0; $i < 5; $i++) unset($dsa->field_og_access_ref['und'][$i]); 
+    $this->helperCaseCoda($dsa, $msg, $this->usr_Too->uid);        
+  }
+  
+  function addFauxgrpalBC_User2DolorSitAmet() {
+    $dsa = &$this->loremIpsum_dolorSitAmet;
+    for ($i = 0; $i < 2; $i++) {
+      switch ($i) {
+        case 0: $nid = $this->fauxgrpal_Beyond->nid; break;
+        case 1: $nid = $this->fauxgrpal_Call->nid; break;
+        default: $nid = 99; break; // should never happen
+      }
+      $dsa->field_og_access_ref['und'][$i] = $nid;
+    }
+    $this->helperCaseCoda($dsa, "User 2 added fauxgrpal_B, fauxgrpal_C", $this->usr_Too->uid);
+  } 
+  
+  function helperCaseCoda(&$node, $msg, $uid) {
+    $node->revision_uid = $uid;
+    $node->log = $msg;
+    node_save($node);
+    error_log($msg);
+  }
+  
+  /**
+   * Debugging -- prints out all the created objects
+   */
+  protected function printObjs() {
+    error_log("  user WonAbove      ::::::::::::::::::::: ");
+    error_log(var_dump($this->usr_WonAbove));
+    error_log("  user Above     ::::::::::::::::::::: ");
+    error_log(var_dump($this->usr_Above));
+    error_log("  user Too     ::::::::::::::::::::: ");    
+    error_log(var_dump($this->usr_Too));
+
+    error_log("  grpal GROUP TYPE      ::::::::::::::::::::: ");    
+    error_log(var_dump($this->grpal));
+    error_log("  fauxgrpal GROUP TYPE      ::::::::::::::::::::: ");    
+    error_log(var_dump($this->fauxgrpal));
+
+    error_log("  fauxgrpal_A      ::::::::::::::::::::: ");    
+    error_log(var_dump($this->fauxgrpal_Above));
+    error_log("  fauxgrpal_B      ::::::::::::::::::::: ");    
+    error_log(var_dump($this->fauxgrpal_Beyond));
+    error_log("  fauxgrpal_C      ::::::::::::::::::::: ");    
+    error_log(var_dump($this->fauxgrpal_Call));
+    error_log("  fauxgrpal_D      ::::::::::::::::::::: ");    
+    error_log(var_dump($this->fauxgrpal_Duty));
+    error_log("  fauxgrpal_E      ::::::::::::::::::::: ");    
+    error_log(var_dump($this->fauxgrpal_Excellency));
+    
+    error_log("  loremIpsum       ::::::::::::::::::::: ");    
+    error_log(var_dump($this->loremIpsum));
+    error_log("  loremIpsum_dolorSitAmet    ::::::::::::::::::::: ");    
+    error_log(var_dump($this->loremIpsum_dolorSitAmet));  
+  }
+}
