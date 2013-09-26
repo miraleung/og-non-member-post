@@ -9,4 +9,4 @@ dependencies[] = entityreference
 dependencies[] = entityreference_prepopulate
 dependencies[] = og
 dependencies[] = og_ui
-dependencies[] = simpletest
+
