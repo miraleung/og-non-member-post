@@ -44,6 +44,13 @@ class OgNonMemberPostSelectionHandler extends OgSelectionHandler {
     $query->addTag('entity_field_access');
     $query->addTag('og');
 		 
+		global $user;	
+		if (!$user->uid) { // anon user, don't allow create access!
+			$query->entityCondition('entity_id', -1, '=');
+			return $query;
+		}
+		 
+
 		$node = $this->entity;
 		$node_type = $this->instance['bundle'];
 		$ids = array();
